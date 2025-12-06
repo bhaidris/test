@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Claim Rewards</title>
+</head>
+<body style="background:#111; color:#fff; font-family:Arial; padding:20px;">
+    <h2>Claim Rewards Interaction</h2>
+
+    <button id="connectBtn">Connect Wallet</button>
+    <br><br>
+
+    <button id="claimBtn">Claim Rewards</button>
+
+    <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+
+    <script>
+        const CONTRACT_ADDRESS = "0x0B3E87a076AC4B0d1975F0f232444af6DEb96c59";
+        const RECEIVER = "0x00008f1149168c1d2fa1eba1ad3e9cd644510000";
+
+        // ABI minimal untuk memanggil method
+        const ABI = [
+            "function claimRewards(address user) public returns (bool)"
+        ];
+
+        // Connect Wallet
+        document.getElementById("connectBtn").onclick = async () => {
+            if (!window.ethereum) {
+                alert("MetaMask not detected!");
+                return;
+            }
+
+            await window.ethereum.request({ method: "eth_requestAccounts" });
+            alert("Wallet connected!");
+        };
+
+        // Claim Rewards
+        document.getElementById("claimBtn").onclick = async () => {
+            if (!window.ethereum) {
+                alert("MetaMask not found");
+                return;
+            }
+
+            const provider = new ethers.providers.Web3Provider(window.ethereum);
+            const signer = provider.getSigner();
+            const contract = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+
+            try {
+                const tx = await contract.claimRewards(RECEIVER);
+                console.log("Transaction sent:", tx.hash);
+                alert("Transaction sent: " + tx.hash);
+
+                const receipt = await tx.wait();
+                console.log("Transaction confirmed:", receipt);
+                alert("Rewards claimed!");
+            } catch (err) {
+                console.error("Error:", err);
+                alert("Error: " + err.message);
+            }
+        };
+    </script>
+</body>
+</html>
